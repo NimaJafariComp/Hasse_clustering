@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hasse Clustering</title>
+  <link rel="stylesheet" href="/static/style.css?v=20" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">HC</span>
+      <span class="brand-name">Hasse Clustering</span>
+    </div>
+    <div class="topbar-actions">
+      <button id="theme-toggle" class="icon-btn" type="button" title="Toggle dark mode">◐</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="section">
+        <div class="section-label">Data</div>
+        <label>Sequences (JSON or CSV)
+          <textarea id="sequences" rows="8" spellcheck="false">[
+  ["e1", "e2", "e3"],
+  ["e1", "e3", "e2"],
+  ["e1", "e2", "e3", "e4"],
+  ["e2", "e3"]
+]</textarea>
+        </label>
+        <div class="row">
+          <label>Format
+            <select id="input-format">
+              <option value="auto" selected>Auto</option>
+              <option value="json">JSON</option>
+              <option value="csv">CSV</option>
+            </select>
+          </label>
+          <label>CSV column
+            <input id="sequence-column" type="text" value="sequence" />
+          </label>
+        </div>
+        <label>Upload file
+          <input id="input-file" type="file" accept=".json,.csv,text/csv,application/json" />
+        </label>
+        <div class="mini-actions">
+          <button id="load-example" class="ghost" type="button">Load example</button>
+          <button id="format-json" class="ghost" type="button">Format JSON</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Parameters</div>
+        <div class="row">
+          <label>r — max subset size
+            <input id="r" type="number" min="1" value="2" />
+          </label>
+          <label>t — coverage %
+            <input id="t" type="number" min="0" max="100" value="100" />
+          </label>
+        </div>
+        <label>Events filter (optional, comma-separated)
+          <input id="events" type="text" placeholder="e1,e2,e5" />
+        </label>
+        <label class="checkbox">
+          <input id="bidir" type="checkbox" checked />
+          Detect bidirectional arrows (halt if found)
+        </label>
+      </div>
+
+      <div class="section">
+        <div class="controls">
+          <button id="run" class="primary">Run</button>
+          <button id="stop" class="danger" disabled>Stop</button>
+        </div>
+
+        <div id="progress-wrap" class="hidden">
+          <div class="progress-meta">
+            <div id="progress-stage" class="stage-chip">idle</div>
+            <div id="progress-pct" class="progress-pct">0%</div>
+          </div>
+          <div class="progress-bar"><div id="progress-fill"></div></div>
+          <div id="progress-msg" class="muted"></div>
+        </div>
+
+        <div id="status" class="status"></div>
+      </div>
+
+      <div class="hint-list">
+        <div>Repeated events never drop a row: u→v is only allowed when every u occurs before every v (AlgV4 rule).</div>
+        <div>Rows emptied by the filter are excluded from n.</div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <div id="panels" class="panels">
+        <div class="panel root-panel">
+          <div id="summary" class="summary-empty muted">Run an analysis to see clusters and source subsets.</div>
+          <div id="results"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Runtime warning modal -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <h3>Runtime warning</h3>
+      <p id="modal-msg"></p>
+      <div class="modal-actions">
+        <button id="modal-continue" class="primary" type="button" data-warning-action="continue">Continue</button>
+        <button id="modal-abort" class="danger" type="button" data-warning-action="abort">Abort</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=24"></script>
+</body>
+</html>

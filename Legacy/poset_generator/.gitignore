@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+# Generated output — reproducible from the scripts; not source.
+posets_n*.json
