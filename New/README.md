@@ -2,6 +2,9 @@
 
 `New/` is the current sequence-first Hasse clustering pipeline. It starts from raw event sequences, extracts compatible Hasse diagrams directly from the data, searches high-coverage antichain subsets, and reports source subsets plus row membership. It does not need the legacy precomputed poset universe, NetworkX graph, or fixed node IDs.
 
+Try the [public browser demo](https://hasse-clustering.pages.dev/). It runs this
+canonical engine on your device in a browser Web Worker.
+
 The broader framework is explainable process understanding. A sequence is not treated as a point in a feature vector space. It is treated as evidence for one or more partial-order process concepts: events, relations between events, abstraction/specialization structure, and difference-making constraints.
 
 ## Quick start

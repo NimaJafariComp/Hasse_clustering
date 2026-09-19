@@ -1,7 +1,63 @@
 # Hasse Clustering
 
+[![Live demo](https://img.shields.io/badge/live_demo-hasse--clustering.pages.dev-2563eb?style=flat-square&logo=cloudflarepages&logoColor=white)](https://hasse-clustering.pages.dev/)
+![Python stdlib](https://img.shields.io/badge/Python-stdlib-3776AB?style=flat-square&logo=python&logoColor=white)
+![Cloudflare Pages](https://img.shields.io/badge/Cloudflare_Pages-static-F38020?style=flat-square&logo=cloudflarepages&logoColor=white)
+![License: MIT](https://img.shields.io/badge/license-MIT-16a34a?style=flat-square)
+
+Exact, explainable clustering for ordered event sequences.
+
 Research codebase for clustering event sequences by the **Hasse diagram (DAG)
 patterns** they support, instead of by distances between feature vectors.
+
+## Live demo
+
+Run the deployed application at [hasse-clustering.pages.dev](https://hasse-clustering.pages.dev/).
+
+The demo runs the canonical Python engine in Pyodide inside a browser Web
+Worker. Your browser supplies the CPU and RAM for clustering. The host serves
+static assets only: it does not run clustering jobs or store submitted input.
+
+## Software overview
+
+The current implementation supports:
+
+- JSON and CSV sequence input by paste or local upload
+- Exact Hasse DAG extraction with AlgV4-compatible repeated-event semantics
+- Event filtering, source-subset discovery, recursive cluster refinement, and
+  row-to-cluster assignments
+- SVG DAG visualizations, cluster exports, and local browser-side cancellation
+- A dependency-free Python CLI, local web server, static build, and browser
+  deployment
+
+## Get started
+
+The current pipeline has no Python package dependencies and runs on CPython or
+PyPy.
+
+```bash
+git clone git@github.com:NimaJafariComp/Hasse_clustering.git
+cd Hasse_clustering/New
+
+# Start the browser UI at http://127.0.0.1:8000
+python3 webapp/server.py
+
+# Run the command-line interface
+python3 run.py --sequences example_sequences.json -r 2 -t 60
+
+# Run the native regression suite
+python3 test_engine.py
+```
+
+Build the deployable static site from the repository root:
+
+```bash
+python3 New/webapp/build_static.py
+```
+
+The build produces `New/webapp/dist/`, which contains static assets and the
+canonical Python engine for Pyodide. Deployment configuration is in
+[wrangler.toml](wrangler.toml).
 
 Broader framing: this project studies **explainable process understanding**.
 Ologs can ground event labels as typed concepts and composable relations;
