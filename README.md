@@ -3,7 +3,7 @@
 [![Live demo](https://img.shields.io/badge/live_demo-hasse--clustering.pages.dev-2563eb?style=flat-square&logo=cloudflarepages&logoColor=white)](https://hasse-clustering.pages.dev/)
 ![Python stdlib](https://img.shields.io/badge/Python-stdlib-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Cloudflare Pages](https://img.shields.io/badge/Cloudflare_Pages-static-F38020?style=flat-square&logo=cloudflarepages&logoColor=white)
-![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm_Noncommercial-7c3aed?style=flat-square)
+![License: GPL v3](https://img.shields.io/badge/license-GPLv3-3B82F6?style=flat-square)
 
 Exact, explainable clustering for ordered event sequences.
 
@@ -61,10 +61,10 @@ canonical Python engine for Pyodide. Deployment configuration is in
 
 ## License
 
-This project is source-available under the [PolyForm Noncommercial License
-1.0.0](LICENSE). It grants permissions to use, modify, and distribute the
-software only for noncommercial purposes. Commercial use requires a separate
-license from the copyright holder.
+This project is licensed under the [GNU General Public License v3.0](LICENSE).
+You may use, modify, and redistribute it, including commercially, provided
+that distributed derivative works are also licensed under GPLv3 with their
+corresponding source code available.
 
 Broader framing: this project studies **explainable process understanding**.
 Ologs can ground event labels as typed concepts and composable relations;

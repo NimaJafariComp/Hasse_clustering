@@ -5,9 +5,9 @@
 Try the [public browser demo](https://hasse-clustering.pages.dev/). It runs this
 canonical engine on your device in a browser Web Worker.
 
-The project is source-available under the [PolyForm Noncommercial License
-1.0.0](../LICENSE). Commercial use requires a separate license from the
-copyright holder.
+The project is licensed under the [GNU General Public License v3.0](../LICENSE).
+Distributed derivative works must remain GPLv3 and provide corresponding source
+code.
 
 The broader framework is explainable process understanding. A sequence is not treated as a point in a feature vector space. It is treated as evidence for one or more partial-order process concepts: events, relations between events, abstraction/specialization structure, and difference-making constraints.
 
