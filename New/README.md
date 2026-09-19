@@ -414,15 +414,51 @@ python3 webapp/server.py
 python3 webapp/server.py --port 9000
 ```
 
-The server uses only Python stdlib:
+The UI runs `engine.py` in Pyodide inside a browser Web Worker. Each visitor's
+browser performs the analysis and holds the result in memory; the local server
+only serves the UI assets and canonical Python source files. It uses only the
+Python stdlib:
 
 ```text
 ThreadingHTTPServer
-background Job threads
-engine.Control for progress, cancellation, and warnings
+browser Web Worker + Pyodide (downloaded by the browser on first run)
+engine.Control progress callbacks forwarded from the worker
 ```
 
-API:
+### Public static deployment
+
+Build the static artifact from the repository root:
+
+```bash
+python3 New/webapp/build_static.py
+```
+
+This creates the ignored `New/webapp/dist/` directory. It contains only the
+HTML/CSS/JavaScript UI plus the canonical `engine.py` and `input_loader.py` for
+Pyodide; it contains no Python HTTP server, API, database, or user uploads.
+
+For Cloudflare Pages Git integration, create a Pages project for this GitHub
+repository and set:
+
+```text
+Production branch:      main
+Build command:          python3 New/webapp/build_static.py
+Build output directory: New/webapp/dist
+```
+
+The committed `wrangler.toml` records the same build-output directory for
+Wrangler/Pages. Enable preview deployments for branches or pull requests in
+the Pages dashboard. Once the project is connected, a push to `main` deploys
+the static artifact automatically.
+
+Privacy and performance: input is parsed and clustered in the visitor's Web
+Worker. It is not sent to this app's server or stored by the app; refresh
+clears in-memory results. Pyodide itself is downloaded from the pinned jsDelivr
+URL on its first use. Exact large analyses can use substantial CPU and RAM on
+the visitor's device.
+
+The current UI does not call the legacy `/api/*` endpoints below; they remain
+available only for local compatibility during the migration:
 
 ```text
 POST /api/start      start a job

@@ -1,0 +1,57 @@
+{
+  "cases": [
+    {
+      "id": "canonical-example",
+      "request": {
+        "sequences": [["e1", "e2", "e3"], ["e1", "e3", "e2"], ["e1", "e2", "e3", "e4"], ["e2", "e3"]],
+        "r": 2,
+        "t": 60,
+        "events": null,
+        "detect_bidirectional": true
+      }
+    },
+    {
+      "id": "repeated-event-semantics",
+      "request": {
+        "sequences": [["a", "x", "b", "x", "c"], ["a", "b", "a"], ["a", "b", "c"]],
+        "r": 1,
+        "t": 50,
+        "events": null,
+        "detect_bidirectional": true
+      }
+    },
+    {
+      "id": "event-filtering",
+      "request": {
+        "sequences": [["q"], ["a", "b"], ["q", "a"], ["b", "a"]],
+        "r": 1,
+        "t": 50,
+        "events": ["a", "b"],
+        "detect_bidirectional": true
+      }
+    },
+    {
+      "id": "invalid-coverage",
+      "request": {
+        "sequences": [["a", "b"]],
+        "r": 1,
+        "t": 101,
+        "events": null,
+        "detect_bidirectional": true
+      },
+      "expectError": "r must be >= 1 and t in [0,100]"
+    },
+    {
+      "id": "game-v3-reference",
+      "inputFile": "../../../SampleV3GameData/sequence_of_sets_formatted_Won.csv",
+      "request": {
+        "input_format": "csv",
+        "sequence_column": "sequence",
+        "r": 2,
+        "t": 100,
+        "events": ["e1", "e2", "e5", "e6", "e11"],
+        "detect_bidirectional": true
+      }
+    }
+  ]
+}

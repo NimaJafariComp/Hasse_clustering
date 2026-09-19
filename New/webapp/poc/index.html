@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hasse Clustering — Browser Worker Proof of Concept</title>
+  <style>
+    :root { color-scheme: dark; font-family: ui-sans-serif, system-ui, sans-serif; background: #121820; color: #e7edf5; }
+    body { max-width: 920px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+    button { border: 0; border-radius: .4rem; padding: .65rem 1rem; font: inherit; font-weight: 700; cursor: pointer; }
+    #run { background: #47a4ef; color: #07131e; } #stop { background: #d85b68; color: white; margin-left: .5rem; }
+    button:disabled { cursor: default; opacity: .55; }
+    .card { margin-top: 1rem; padding: 1rem; border: 1px solid #334454; border-radius: .5rem; background: #18212b; }
+    #status[data-type="success"] { color: #77d7a2; } #status[data-type="error"] { color: #ff9aa4; }
+    #progress, #metrics { min-height: 1.5rem; color: #b7c8da; }
+    pre { max-height: 28rem; overflow: auto; padding: 1rem; border-radius: .35rem; background: #0d1218; font-size: .8rem; }
+    code { color: #b9dcff; }
+  </style>
+</head>
+<body>
+  <h1>Browser Worker Proof of Concept</h1>
+  <p>
+    This spike executes the canonical <code>New/engine.py</code> in Pyodide inside a Web Worker.
+    The page stays responsive while the visitor’s browser performs the clustering.
+  </p>
+  <p>
+    <button id="run" type="button">Run canonical example</button>
+    <button id="run-game-v3" type="button">Run Game V3 reference</button>
+    <button id="stop" type="button" disabled>Stop worker</button>
+  </p>
+  <section class="card" aria-live="polite">
+    <div id="status">Ready. The first run downloads the pinned Pyodide runtime.</div>
+    <div id="progress"></div>
+    <div id="metrics"></div>
+  </section>
+  <section class="card">
+    <h2>Result payload</h2>
+    <pre id="output">Run the example to inspect the browser-generated payload.</pre>
+  </section>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>

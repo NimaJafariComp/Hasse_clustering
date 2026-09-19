@@ -1,6 +1,40 @@
-"use strict";
+import { assessBrowserRequest } from "./browser-limits.mjs";
 
 const $ = (id) => document.getElementById(id);
+
+let resolvePreflightWarning = null;
+
+function confirmPreflightWarnings(warnings) {
+  return new Promise((resolve) => {
+    resolvePreflightWarning = resolve;
+    $("modal-msg").textContent = [
+      "This analysis runs on this device.",
+      ...warnings.map((warning) => `• ${warning}`),
+      "Continue only if this device can handle a potentially long exact search.",
+    ].join("\n\n");
+    $("modal-continue").disabled = false;
+    $("modal-abort").disabled = false;
+    $("modal").classList.remove("hidden");
+  });
+}
+
+function resolvePreflight(continueRun) {
+  if (!resolvePreflightWarning) return;
+  const resolve = resolvePreflightWarning;
+  resolvePreflightWarning = null;
+  $("modal").classList.add("hidden");
+  resolve(continueRun);
+}
+
+async function approveBrowserRequest(request) {
+  const { errors, warnings } = assessBrowserRequest(request);
+  if (errors.length) return { ok: false, message: errors.join(" ") };
+  if (!warnings.length) return { ok: true };
+  const confirmed = await confirmPreflightWarnings(warnings);
+  return confirmed
+    ? { ok: true }
+    : { ok: false, message: "Analysis cancelled before it started." };
+}
 
 const EXAMPLE_SEQUENCES = [
   ["e1", "e2", "e3"],
@@ -10,153 +44,109 @@ const EXAMPLE_SEQUENCES = [
 ];
 
 // --------------------------------------------------------------------------- //
-// API
-// --------------------------------------------------------------------------- //
-
-async function postJSON(url, body) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return res.json();
-}
-
-// --------------------------------------------------------------------------- //
-// Job runner — supports several concurrent jobs (root run + refine panels).
+// Browser worker job runner — one exact Python computation per tab.
 // ui: { progress(s), done(result), fail(msg), stopped() }
 // --------------------------------------------------------------------------- //
 
+// These resolve from this module/worker respectively. Keeping them relative
+// lets the static build work unchanged on a Pages preview or custom domain.
+const BROWSER_WORKER_URL = new URL("./cluster-worker.mjs", import.meta.url);
+const BROWSER_PYTHON_SOURCES = {
+  engine: new URL("../python/engine.py", BROWSER_WORKER_URL).href,
+  inputLoader: new URL("../python/input_loader.py", BROWSER_WORKER_URL).href,
+};
+
+let browserWorker = null;
+let activeBrowserJob = null;
+let browserJobCounter = 0;
+
+function clearActiveBrowserJob(job) {
+  if (activeBrowserJob === job) activeBrowserJob = null;
+  job.active = false;
+}
+
+function stopBrowserWorker() {
+  browserWorker?.terminate();
+  browserWorker = null;
+}
+
+function ensureBrowserWorker() {
+  if (browserWorker) return browserWorker;
+  if (typeof Worker === "undefined" || typeof WebAssembly === "undefined") {
+    throw new Error("This browser cannot run local clustering. Use a current browser with Web Workers and WebAssembly enabled.");
+  }
+
+  browserWorker = new Worker(BROWSER_WORKER_URL, { type: "module" });
+  browserWorker.addEventListener("message", ({ data }) => {
+    const job = activeBrowserJob;
+    if (!job || data?.requestId !== job.id) return;
+
+    if (data.type === "diagnostic") {
+      job.ui.progress({ state: "running", stage: "loading", frac: 0, message: data.message });
+    } else if (data.type === "progress") {
+      job.ui.progress({
+        state: "running",
+        stage: data.stage,
+        frac: data.frac,
+        message: data.message,
+      });
+    } else if (data.type === "result") {
+      clearActiveBrowserJob(job);
+      job.ui.done(data.result);
+    } else if (data.type === "error") {
+      clearActiveBrowserJob(job);
+      stopBrowserWorker();
+      job.ui.fail(`Halted: ${data.message}`);
+    }
+  });
+  browserWorker.addEventListener("error", (event) => {
+    const job = activeBrowserJob;
+    stopBrowserWorker();
+    if (!job) return;
+    clearActiveBrowserJob(job);
+    job.ui.fail(`Browser worker failed: ${event.message || "unknown error"}`);
+  });
+  return browserWorker;
+}
+
 function createJob(ui) {
-  const job = {
-    id: null,
-    timer: null,
-    suppressModal: false,     // true after the user responds, until state leaves "awaiting"
-    suppressedWarning: null,
-    active: false,
-  };
+  const job = { id: null, active: false, ui };
 
   job.start = async (body) => {
-    const res = await postJSON("/api/start", body);
-    if (res.error) {
-      ui.fail(res.error);
+    if (activeBrowserJob) {
+      ui.fail("Another analysis is already running in this browser tab.");
       return false;
     }
-    job.id = res.job;
+    job.id = `browser-${++browserJobCounter}`;
     job.active = true;
-    job.suppressModal = false;
-    job.suppressedWarning = null;
-    poll();
-    return true;
+    activeBrowserJob = job;
+    try {
+      ensureBrowserWorker().postMessage({
+        type: "run",
+        requestId: job.id,
+        request: body,
+        sources: BROWSER_PYTHON_SOURCES,
+      });
+      return true;
+    } catch (error) {
+      clearActiveBrowserJob(job);
+      ui.fail(`Could not start browser worker: ${error.message}`);
+      return false;
+    }
   };
 
   job.stop = async () => {
     if (!job.active) return;
-    await postJSON("/api/control", { job: job.id, action: "stop" });
+    clearActiveBrowserJob(job);
+    stopBrowserWorker();
+    ui.stopped();
   };
 
   job.cancelPolling = () => {
-    clearTimeout(job.timer);
-    job.active = false;
+    if (job.active) job.stop();
   };
 
-  // Continuous poll loop: runs until a terminal state. Never stops on "awaiting".
-  function poll() {
-    clearTimeout(job.timer);
-    job.timer = setTimeout(async () => {
-      if (!job.active) return;
-      try {
-        const s = await fetch("/api/status?job=" + job.id).then((r) => r.json());
-        handleStatus(s);
-      } catch (e) {
-        job.active = false;
-        ui.fail("Lost connection to server: " + e.message);
-      }
-    }, 250);
-  }
-
-  function handleStatus(s) {
-    if (s.error && !s.state) {
-      job.active = false;
-      ui.fail(s.error);
-      return;
-    }
-    ui.progress(s);
-
-    if (s.state === "awaiting") {
-      const warning = s.warning || "Runtime warning raised, but no message was provided.";
-      if (!job.suppressModal || warning !== job.suppressedWarning) {
-        showModal(warning, job);
-      }
-      poll(); // keep polling so we notice when the worker resumes
-      return;
-    }
-
-    // Left the awaiting state: clear modal + the suppression latch.
-    job.suppressModal = false;
-    job.suppressedWarning = null;
-    if (modalJob === job) hideModal();
-
-    if (s.state === "done") {
-      job.active = false;
-      ui.done(s.result);
-    } else if (s.state === "stopped") {
-      job.active = false;
-      ui.stopped();
-    } else if (s.state === "error") {
-      job.active = false;
-      ui.fail("Halted: " + (s.error || s.message));
-    } else {
-      poll(); // still running
-    }
-  }
-
   return job;
-}
-
-// --------------------------------------------------------------------------- //
-// Modal (runtime warning) — shared; routes the decision to the awaiting job.
-// --------------------------------------------------------------------------- //
-
-let modalJob = null;
-let modalBusy = false;
-
-function showModal(msg, job) {
-  modalJob = job;
-  modalBusy = false;
-  $("modal-msg").textContent = msg;
-  $("modal-continue").disabled = false;
-  $("modal-abort").disabled = false;
-  $("modal").classList.remove("hidden");
-}
-function hideModal() {
-  $("modal").classList.add("hidden");
-  modalJob = null;
-}
-async function modalDecision(cont) {
-  const job = modalJob;
-  if (!job || modalBusy) return;
-  modalBusy = true;
-  job.suppressedWarning = $("modal-msg").textContent;
-  $("modal-continue").disabled = true;
-  $("modal-abort").disabled = true;
-  hideModal();
-  job.suppressModal = true; // don't re-show this warning while the worker resumes
-  try {
-    const res = await postJSON("/api/control", {
-      job: job.id,
-      action: cont ? "continue" : "abort",
-    });
-    if (res.error) {
-      throw new Error(res.error);
-    }
-  } catch (e) {
-    job.suppressModal = false;
-    showModal("Could not send warning response to server: " + e.message, job);
-  } finally {
-    modalBusy = false;
-  }
-  // The poll loop is already running; it will pick up the new state.
 }
 
 // --------------------------------------------------------------------------- //
@@ -208,6 +198,12 @@ async function startRun() {
     events: events ? events.split(",").map((s) => s.trim()).filter(Boolean) : null,
     detect_bidirectional: $("bidir").checked,
   };
+
+  const approval = await approveBrowserRequest(body);
+  if (!approval.ok) {
+    setStatus(approval.message, "error");
+    return;
+  }
 
   $("results").innerHTML = "";
   $("summary").className = "summary-empty muted";
@@ -906,6 +902,11 @@ function openRefinePanel(info) {
       events: events ? events.split(",").map((s) => s.trim()).filter(Boolean) : null,
       detect_bidirectional: $("bidir").checked,
     };
+    const approval = await approveBrowserRequest(body);
+    if (!approval.ok) {
+      setPanelStatus(approval.message, "error");
+      return;
+    }
     $(`rf-results-${uid}`).innerHTML = "";
     const summary = $(`rf-summary-${uid}`);
     summary.className = "summary-empty muted";
@@ -1077,15 +1078,8 @@ $("theme-toggle").addEventListener("click", () => {
 
 $("run").addEventListener("click", startRun);
 $("stop").addEventListener("click", () => rootJob.stop());
-$("modal-continue").addEventListener("click", () => modalDecision(true));
-$("modal-abort").addEventListener("click", () => modalDecision(false));
 $("load-example").addEventListener("click", loadExample);
 $("format-json").addEventListener("click", formatJSON);
 $("input-file").addEventListener("change", loadInputFile);
-
-document.addEventListener("click", (event) => {
-  const actionButton = event.target.closest("[data-warning-action]");
-  if (!actionButton) return;
-  event.preventDefault();
-  modalDecision(actionButton.dataset.warningAction === "continue");
-}, true);
+$("modal-continue").addEventListener("click", () => resolvePreflight(true));
+$("modal-abort").addEventListener("click", () => resolvePreflight(false));

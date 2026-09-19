@@ -1,9 +1,10 @@
 """
 Hasse Sequence Clustering — web app (dependency-free, Python stdlib only).
 
-Runs under CPython or PyPy with no pip installs. Serves a single-page UI and a
-small JSON API that runs the analysis in a background thread, streaming progress
-and supporting a stop button and runtime-warning "continue" prompts.
+Runs under CPython or PyPy with no pip installs. Serves the single-page UI and
+the canonical Python files that the browser's Pyodide worker executes locally.
+The legacy JSON API remains for local compatibility, but the current UI no
+longer submits clustering jobs to it.
 
 Start:
   python webapp/server.py            # serves http://127.0.0.1:8000
@@ -24,6 +25,8 @@ import engine  # noqa: E402
 from input_loader import parse_sequences_text  # noqa: E402
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+ENGINE_PATH = os.path.join(os.path.dirname(os.path.dirname(STATIC_DIR)), "engine.py")
+INPUT_LOADER_PATH = os.path.join(os.path.dirname(os.path.dirname(STATIC_DIR)), "input_loader.py")
 
 
 # --------------------------------------------------------------------------- #
@@ -210,8 +213,16 @@ class Handler(BaseHTTPRequestHandler):
             self._send_file(os.path.join(STATIC_DIR, "index.html"), "text/html; charset=utf-8")
         elif path == "/static/app.js":
             self._send_file(os.path.join(STATIC_DIR, "app.js"), "application/javascript")
+        elif path == "/static/cluster-worker.mjs":
+            self._send_file(os.path.join(STATIC_DIR, "cluster-worker.mjs"), "application/javascript")
+        elif path == "/static/browser-limits.mjs":
+            self._send_file(os.path.join(STATIC_DIR, "browser-limits.mjs"), "application/javascript")
         elif path == "/static/style.css":
             self._send_file(os.path.join(STATIC_DIR, "style.css"), "text/css")
+        elif path in ("/browser/engine.py", "/python/engine.py"):
+            self._send_file(ENGINE_PATH, "text/x-python; charset=utf-8")
+        elif path in ("/browser/input_loader.py", "/python/input_loader.py"):
+            self._send_file(INPUT_LOADER_PATH, "text/x-python; charset=utf-8")
         elif path == "/api/status":
             job_id = self.path.split("job=", 1)[-1] if "job=" in self.path else ""
             job = MANAGER.get(job_id)
